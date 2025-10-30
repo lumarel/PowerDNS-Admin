@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.13"]
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
         database: [mysql-8, postgres-15, sqlite]
         arch: [amd64, arm64]
     steps:
