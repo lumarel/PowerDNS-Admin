@@ -57,7 +57,7 @@ jobs:
           pytest -m "api" --cov-append
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-xml-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.database }}-${{ matrix.arch }}
           path: coverage.xml
