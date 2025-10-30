@@ -2,6 +2,7 @@
 
 A PowerDNS web interface with advanced features.
 
+For details on the CI/CD pipeline see [docs/CI-CD.md](docs/CI-CD.md).
 [![CodeQL](https://github.com/PowerDNS-Admin/PowerDNS-Admin/actions/workflows/codeql-analysis.yml/badge.svg?branch=master)](https://github.com/PowerDNS-Admin/PowerDNS-Admin/actions/workflows/codeql-analysis.yml)
 [![Docker Image](https://github.com/PowerDNS-Admin/PowerDNS-Admin/actions/workflows/build-and-publish.yml/badge.svg?branch=master)](https://github.com/PowerDNS-Admin/PowerDNS-Admin/actions/workflows/build-and-publish.yml)
 
@@ -14,7 +15,7 @@ A PowerDNS web interface with advanced features.
 - Provides activity logging
 - Authentication:
   - Local User Support
-  - SAML Support
+  - SAML Support (legacy and modern implementations)
   - LDAP Support: OpenLDAP / Active Directory
   - OAuth Support: Google / GitHub / Azure / OpenID
 - Two-factor authentication support (TOTP)
@@ -38,6 +39,12 @@ Here are two options to run PowerDNS-Admin using Docker.
 To get started as quickly as possible, try option 1. If you want to make modifications to the configuration option 2 may
 be cleaner.
 
+### Supported Python versions
+
+PowerDNS-Admin is tested on Python 3.6 through 3.12.  The application includes
+compatibility shims so it can run under newer Python versions where the
+``distutils`` module has been removed.
+
 #### Option 1: From Docker Hub
 
 To run the application using the latest stable release on Docker Hub, run the following command:
@@ -59,9 +66,10 @@ This creates a volume named `pda-data` to persist the default SQLite database wi
    Other environment variables are mentioned in
    the [AppSettings.defaults](https://github.com/PowerDNS-Admin/PowerDNS-Admin/blob/master/powerdnsadmin/lib/settings.py) dictionary.
    To use a Docker-style secrets convention, one may append `_FILE` to the environment variables with a path to a file
-   containing the intended value of the variable (e.g. `SQLALCHEMY_DATABASE_URI_FILE=/run/secrets/db_uri`).   
+   containing the intended value of the variable (e.g. `SQLALCHEMY_DATABASE_URI_FILE=/run/secrets/db_uri`).
    Make sure to set the environment variable `SECRET_KEY` to a long, random
    string (https://flask.palletsprojects.com/en/1.1.x/config/#SECRET_KEY)
+   Optionally set `SAML_IMPLEMENTATION=modern` to enable the new pysaml2 based handler.
 
 2. Start docker container
    ```
