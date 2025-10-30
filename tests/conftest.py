@@ -1,5 +1,7 @@
 import os
 from base64 import b64encode
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 import pytest
 from flask_migrate import upgrade as flask_migrate_upgrade
@@ -9,7 +11,6 @@ from powerdnsadmin.models.api_key import ApiKey
 from powerdnsadmin.models.base import db
 from powerdnsadmin.models.setting import Setting
 from powerdnsadmin.models.user import User
-
 
 @pytest.fixture(scope="session")
 def app():
@@ -176,9 +177,9 @@ def initial_apikey_data(app):
 @pytest.fixture
 def zone_data():
     data = {
-        "name": "example.org.",
+        "name": "example2.org.",
         "kind": "NATIVE",
-        "nameservers": ["ns1.example.org."]
+        "nameservers": ["ns1.example2.org."]
     }
     return data
 
@@ -186,7 +187,7 @@ def zone_data():
 @pytest.fixture
 def created_zone_data():
     data = {
-        'url': '/api/v1/servers/localhost/zones/example.org.',
+        'url': '/api/v1/servers/localhost/zones/example2.org.',
         'soa_edit_api': 'DEFAULT',
         'last_check': 0,
         'masters': [],
@@ -238,7 +239,7 @@ def user_data(app):
 def user_apikey_data():
     data = {
         "description": "userkey",
-        "domains": ["example.org"],
+        "domains": ["example2.org"],
         "role": "User"
     }
     return data

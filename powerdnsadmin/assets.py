@@ -12,7 +12,7 @@ class ConcatFilter(Filter):
 css_login = Bundle(
     'node_modules/@fortawesome/fontawesome-free/css/all.css',
     'node_modules/icheck/skins/square/blue.css',
-    'node_modules/admin-lte/dist/css/adminlte.css',
+    'node_modules/admin-lte/dist/css/adminlte.min.css',
     filters=('rcssmin', 'cssrewrite'),
     output='generated/login.css')
 
@@ -34,7 +34,7 @@ css_main = Bundle(
     'node_modules/datatables.net-bs4/css/dataTables.bootstrap4.css',
     'node_modules/icheck/skins/square/blue.css',
     'node_modules/multiselect/css/multi-select.css',
-    'node_modules/admin-lte/dist/css/adminlte.css',
+    'node_modules/admin-lte/dist/css/adminlte.min.css',
     'custom/css/custom.css',
     'node_modules/bootstrap-datepicker/dist/css/bootstrap-datepicker.css',
     filters=('rcssmin', 'cssrewrite'),

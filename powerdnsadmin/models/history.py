@@ -1,23 +1,32 @@
 import traceback
-
+from typing import Optional
 from flask import current_app
-from datetime import datetime
+from datetime import datetime, timezone
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import db
 
 
 class History(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    # format of msg field must not change. History traversing is done using part of the msg field
-    msg = db.Column(db.String(256))
-    # detail = db.Column(db.Text().with_variant(db.Text(length=2**24-2), 'mysql'))
-    detail = db.Column(db.Text())
-    created_by = db.Column(db.String(128))
-    created_on = db.Column(db.DateTime, index=True, default=datetime.utcnow)
-    domain_id = db.Column(db.Integer,
-                          db.ForeignKey('domain.id'),
-                          nullable=True)
+    __tablename__ = "history"
 
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    # format of msg field must not change. History traversing is done using part of the msg field
+    msg: Mapped[str] = mapped_column(db.String(256))
+    # detail = db.Column(db.Text().with_variant(db.Text(length=2**24-2), 'mysql'))
+    detail: Mapped[str] = mapped_column(db.Text())
+    created_by: Mapped[str] = mapped_column(db.String(128))
+    created_on: Mapped[datetime] = mapped_column(
+        db.DateTime, 
+        index=True, 
+        default=datetime.now(timezone.utc)
+    )
+    domain_id: Mapped[Optional[int]] = mapped_column(
+        db.Integer,
+        db.ForeignKey('domain.id'),
+        nullable=True
+    )
+    
     def __init__(self, id=None, msg=None, detail=None, created_by=None, domain_id=None):
         self.id = id
         self.msg = msg

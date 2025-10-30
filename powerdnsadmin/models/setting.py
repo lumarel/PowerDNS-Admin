@@ -3,14 +3,18 @@ import traceback
 import pytimeparse
 from ast import literal_eval
 from flask import current_app
+from typing import Optional
+from sqlalchemy.orm import Mapped, mapped_column
 from .base import db
 from powerdnsadmin.lib.settings import AppSettings
 
 
 class Setting(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), unique=True, index=True)
-    value = db.Column(db.Text())
+    __tablename__ = "setting"
+
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(db.String(64), unique=True, index=True)
+    value: Mapped[Optional[str]] = mapped_column(db.Text(), nullable=True)
 
     ZONE_TYPE_FORWARD = 'forward'
     ZONE_TYPE_REVERSE = 'reverse'

@@ -86,7 +86,11 @@
                                     <th>Data</th>
                                     {% if domain.type != 'Slave' %}
                                         <th>Comment</th>
-                                        <th>Actions</th>
+                                        <th>Edit</th>
+                                        <th>Delete</th>
+                                        {% if current_user.role.name in ['Administrator', 'Operator'] or allow_user_view_history %}
+                                            <th>Changelog</th>
+                                        {% endif %}
                                     {% else %}
                                         <th>Invisible Sorting Column</th>
                                     {% endif %}
@@ -104,7 +108,7 @@
                                             <td>{{ record.comment }}</td>
                                             <td>
                                                 {% if record.is_allowed_edit() %}
-                                                    <button type="button" title="Edit" class="btn btn-sm btn-warning button_edit">
+                                                    <button type="button" class="btn btn-sm btn-warning button_edit">
                                                         <i class="fa-solid fa-edit"></i>
                                                     </button>
                                                 {% else %}
@@ -112,19 +116,23 @@
                                                         <i class="fa-solid fa-exclamation-circle"></i>
                                                     </button>
                                                 {% endif %}
+                                            </td>
+                                            <td>
                                                 {% if record.is_allowed_delete() %}
-                                                    <button type="button" title="Delete" class="btn btn-sm btn-danger button_delete">
+                                                    <button type="button" class="btn btn-sm btn-danger button_delete">
                                                         <i class="fa-solid fa-trash"></i>
                                                     </button>
                                                 {% endif %}
+                                            </td>
                                                 {% if current_user.role.name in ['Administrator', 'Operator'] or allow_user_view_history %}
-                                                    <button type="button" title="Changelog"
+                                                <td>
+                                                    <button type="button"
                                                             onclick="show_record_changelog('{{ record.name }}','{{ record.type }}',event)"
-                                                            class="btn btn-primary btn-sm">
+                                                            class="btn btn-primary">
                                                         <i class="fa-solid fa-history" aria-hidden="true"></i>
                                                     </button>
+                                                </td>
                                                 {% endif %}
-                                            </td>
                                         {% endif %}
                                         <!-- hidden column that we can sort on -->
                                         <td>1</td>
@@ -134,6 +142,58 @@
                             </table>
                         </div>
                     </div>
+                    {% if catalog_members %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Member Zones</h3>
+                        </div>
+                        <div class="card-body table-responsive">
+                            <table id="tbl_catalog_members" class="table table-bordered table-striped table-hover table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for member in catalog_members %}
+                                    <tr>
+                                        <td><a href="{{ url_for('domain.domain', domain_name=member.name) }}"><strong>{{ member.name | pretty_domain_name }}</strong></a></td>
+                                        <td>
+                                            <div class="dropdown">
+                                                <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenu" data-toggle="dropdown"
+                                                        aria-haspopup="true" aria-expanded="false">
+                                                    <i class="fa-solid fa-bars"></i>
+                                                </button>
+                                                <div class="dropdown-menu" aria-labelledby="dropdownMenu">
+                                                    <button class="dropdown-item btn-success" type="button"
+                                                            onclick="window.location.href='{{ url_for('domain.domain', domain_name=member.name) }}'">
+                                                        <i class="fa-solid fa-pencil"></i>&nbsp;Edit Records
+                                                    </button>
+
+                                                    {% if current_user.role.name in ['Administrator', 'Operator'] %}
+                                                        <button class="dropdown-item btn-danger" type="button"
+                                                                onclick="window.location.href='{{ url_for('domain.setting', domain_name=member.name) }}'">
+                                                            <i class="fa-solid fa-cog"></i>&nbsp;Zone Settings
+                                                        </button>
+                                                    {% endif %}
+
+                                                    {% if current_user.role.name in ['Administrator', 'Operator'] or allow_user_view_history %}
+                                                        <button class="dropdown-item btn-primary" type="button"
+                                                                onclick="window.location.href='{{ url_for('domain.changelog', domain_name=member.name) }}'">
+                                                            <i class="fa-solid fa-history" aria-hidden="true"></i>&nbsp;Zone Changelog
+                                                        </button>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -147,7 +207,6 @@
         table#tbl_records thead th:nth-child(2),
         table#tbl_records thead th:nth-child(3),
         table#tbl_records thead th:nth-child(4) { width: 100px; }
-        table#tbl_records thead th:nth-child(7) { width: 80px; }
         table#tbl_records tbody td { text-align: center; }
         table#tbl_records tbody td:nth-child(0n+5),
         table#tbl_records tbody td:nth-child(0n+6) { text-align: left; word-break: break-all; }
@@ -196,7 +255,11 @@
                     // regardless of whatever sorting is done. See orderFixed
                     visible: false,
                     {% if domain.type != 'Slave' %}
-                        targets: [7]
+                    {% if current_user.role.name in ['Administrator', 'Operator'] or allow_user_view_history %}
+                    targets: [9]
+                {% else %}
+                    targets: [8]
+                {% endif %}
                     {% else %}
                         targets: [5]
                     {% endif %}
@@ -214,7 +277,11 @@
                 }
             ],
             {% if domain.type != 'Slave' %}
-                "orderFixed": [[7, 'asc']]
+            {% if current_user.role.name in ['Administrator', 'Operator'] or allow_user_view_history %}
+                    "orderFixed": [[9, 'asc']]
+                {% else %}
+                    "orderFixed": [[8, 'asc']]
+                {% endif %}
             {% else %}
                 "orderFixed": [[5, 'asc']]
             {% endif %}
@@ -680,6 +747,33 @@
                 }
             });
         {% endif %}
+
+        {% if catalog_members %}
+        $("#tbl_catalog_members").DataTable({
+            "paging": true,
+            "lengthChange": true,
+            "searching": true,
+            "ordering": true,
+            "columnDefs": [
+                {"orderable": false, "targets": [-1]}
+            ],
+            "processing": true,
+            "info": false,
+            "autoWidth": false,
+            {% if SETTING.get('default_domain_table_size')|string in ['10','25','50','100'] %}
+                "lengthMenu": [[10, 25, 50, 100, -1],
+                    [10, 25, 50, 100, "All"]],
+            {% else %}
+                "lengthMenu": [[10, 25, 50, 100, {{ SETTING.get('default_domain_table_size') }}, -1],
+                    [10, 25, 50, 100, {{ SETTING.get('default_domain_table_size') }}, "All"]],
+            {% endif %}
+            "pageLength": {{ SETTING.get('default_domain_table_size') }}
+        });
+        {% endif %}
+
+        window.onload = function () {
+            document.getElementById("loading-spinner").style.display = "none";
+        }
 
     </script>
 {% endblock %}

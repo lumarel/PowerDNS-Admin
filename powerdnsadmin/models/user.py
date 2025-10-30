@@ -12,7 +12,8 @@ from sqlalchemy import orm
 import qrcode as qrc
 import qrcode.image.svg as qrc_svg
 from io import BytesIO
-
+from typing import Optional, List
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import db
 from .role import Role
 from .setting import Setting
@@ -26,16 +27,20 @@ class Anonymous(AnonymousUserMixin):
 
 
 class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), index=True, unique=True)
-    password = db.Column(db.String(64))
-    firstname = db.Column(db.String(64))
-    lastname = db.Column(db.String(64))
-    email = db.Column(db.String(128))
-    otp_secret = db.Column(db.String(16))
-    confirmed = db.Column(db.SmallInteger, nullable=False, default=0)
-    role_id = db.Column(db.Integer, db.ForeignKey('role.id'))
-    role = db.relationship('Role', back_populates="users", lazy=True)
+    __tablename__ = "user"
+
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(db.String(64), index=True, unique=True)
+    password: Mapped[str] = mapped_column(db.String(64))
+    firstname: Mapped[str] = mapped_column(db.String(64))
+    lastname: Mapped[str] = mapped_column(db.String(64))
+    email: Mapped[str] = mapped_column(db.String(128))
+    otp_secret: Mapped[str] = mapped_column(db.String(16))
+    confirmed: Mapped[bool] = mapped_column(db.SmallInteger, nullable=False, default=0)
+    role_id: Mapped[int] = mapped_column(db.Integer, db.ForeignKey('role.id'))
+
+    # Relationships
+    role: Mapped["Role"] = relationship('Role', back_populates="users")
     accounts = None
 
     def __init__(self,

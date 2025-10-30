@@ -47,8 +47,10 @@ index_bp = Blueprint('index',
                      template_folder='templates',
                      url_prefix='/')
 
+# alternative to before_first_request (removed since Flask 2.3 )
+_first_request = True
 
-@index_bp.before_app_first_request
+@index_bp.before_request
 def register_modules():
     global google
     global github

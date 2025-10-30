@@ -1,6 +1,6 @@
 swagger: '2.0'
 info:
-  version: "0.0.14"
+  version: "0.0.15"
   title: PowerDNS Admin Authoritative HTTP API
   license:
     name: MIT
@@ -26,6 +26,28 @@ securityDefinitions:
 #       We need to look at the code and figure out the default HTTP response
 #       codes and adjust docs accordingly.
 paths:
+  '/error':
+    get:
+      summary: Will always generate an error
+      operationId: error
+      responses: &commonErrors
+        '400':
+          description: The supplied request was not valid
+          schema:
+            $ref: '#/definitions/Error'
+        '404':
+          description: Requested item was not found
+          schema:
+            $ref: '#/definitions/Error'
+        '422':
+          description: The input to the operation was not valid
+          schema:
+            $ref: '#/definitions/Error'
+        '500':
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/Error'
+
   '/servers':
     get:
       security:
@@ -41,6 +63,7 @@ paths:
             type: array
             items:
               $ref: '#/definitions/Server'
+        <<: *commonErrors
 
   '/sync_domains':
     get:
@@ -75,6 +98,7 @@ paths:
           description: A server
           schema:
             $ref: '#/definitions/Server'
+        <<: *commonErrors
 
   '/servers/{server_id}/cache/flush':
     put:
@@ -100,7 +124,8 @@ paths:
           description: Flush successful
           schema:
             $ref: '#/definitions/CacheFlushResult'
-
+        <<: *commonErrors
+        
   '/servers/{server_id}/zones':
     get:
       security:
@@ -123,6 +148,12 @@ paths:
             When set to the name of a zone, only this zone is returned.
             If no zone with that name exists, the response is an empty array.
             This can e.g. be used to check if a zone exists in the database without having to guess/encode the zone's id or to check if a zone exists.
+                    - name: dnssec
+          in: query
+          required: false
+          type: boolean
+          default: true
+          description: '“true” (default) or “false”, whether to include the “dnssec” and ”edited_serial” fields in the Zone objects. Setting this to ”false” will make the query a lot faster.'
       responses:
         '200':
           description: An array of Zones
@@ -130,6 +161,7 @@ paths:
             type: array
             items:
               $ref: '#/definitions/Zone'
+        <<: *commonErrors
     post:
       security:
         - APIKeyHeader: []
@@ -159,6 +191,7 @@ paths:
           description: A zone
           schema:
               $ref: '#/definitions/Zone'
+        <<: *commonErrors
 
   '/servers/{server_id}/zones/{zone_id}':
     get:
@@ -179,11 +212,25 @@ paths:
           in: path
           required: true
           description: The id of the zone to retrieve
+        - name: rrsets
+          in: query
+          description: '“true” (default) or “false”, whether to include the “rrsets” in the response Zone object.'
+          type: boolean
+          default: true
+        - name: rrset_name
+          in: query
+          description: Limit output to RRsets for this name.
+          type: string
+        - name: rrset_type
+          in: query
+          description: Limit output to the RRset of this type. Can only be used together with rrset_name.
+          type: string
       responses:
         '200':
           description: A Zone
           schema:
             $ref: '#/definitions/Zone'
+        <<: *commonErrors
     delete:
       security:
         - APIKeyHeader: []
@@ -205,6 +252,7 @@ paths:
       responses:
         '204':
           description: 'Returns 204 No Content on success.'
+        <<: *commonErrors
     patch:
       security:
         - APIKeyHeader: []
@@ -231,12 +279,13 @@ paths:
       responses:
         '204':
           description: 'Returns 204 No Content on success.'
+        <<: *commonErrors
 
     put:
       security:
         - APIKeyHeader: []
-      summary: Modifies basic zone data (metadata).
-      description: 'Allowed fields in client body: all except id, url and name. Returns 204 No Content on success.'
+      summary: Modifies basic zone data.
+      description: 'The only fields in the zone structure which can be modified are: kind, masters, catalog, account, soa_edit, soa_edit_api, api_rectify, dnssec, and nsec3param. All other fields are ignored.'
       operationId: putZone
       tags:
         - zones
@@ -259,6 +308,7 @@ paths:
       responses:
         '204':
           description: 'Returns 204 No Content on success.'
+        <<: *commonErrors
 
   '/servers/{server_id}/zones/{zone_id}/notify':
     put:
@@ -283,6 +333,7 @@ paths:
       responses:
         '200':
           description: OK
+        <<: *commonErrors
 
   '/servers/{server_id}/zones/{zone_id}/axfr-retrieve':
     put:
@@ -307,6 +358,7 @@ paths:
       responses:
         '200':
           description: OK
+        <<: *commonErrors
 
   '/servers/{server_id}/zones/{zone_id}/export':
     get:
@@ -332,31 +384,7 @@ paths:
           description: OK
           schema:
             type: string
-
-  '/servers/{server_id}/zones/{zone_id}/check':
-    get:
-      security:
-        - APIKeyHeader: []
-      summary: 'Verify zone contents/configuration.'
-      operationId: checkZone
-      tags:
-        - zones
-      parameters:
-        - name: server_id
-          in: path
-          required: true
-          description: The id of the server to retrieve
-          type: string
-        - name: zone_id
-          type: string
-          in: path
-          required: true
-          description: The id of the zone to retrieve
-      responses:
-        '200':
-          description: OK
-          schema:
-            type: string
+          <<: *commonErrors
 
   '/servers/{server_id}/zones/{zone_id}/rectify':
     put:
@@ -383,6 +411,7 @@ paths:
           description: OK
           schema:
             type: string
+          <<: *commonErrors
 
   '/servers/{server_id}/config':
     get:
@@ -405,6 +434,7 @@ paths:
             type: array
             items:
               $ref: '#/definitions/ConfigSetting'
+        <<: *commonErrors
 
   '/servers/{server_id}/config/{config_setting_name}':
     get:
@@ -431,13 +461,14 @@ paths:
           description: List of config values
           schema:
             $ref: '#/definitions/ConfigSetting'
+        <<: *commonErrors
 
   '/servers/{server_id}/statistics':
     get:
       security:
         - APIKeyHeader: []
       summary: 'Query statistics.'
-      description: 'Query PowerDNS internal statistics. Returns a list of BaseStatisticItem derived elements.'
+      description: 'Query PowerDNS internal statistics.'
       operationId: getStats
       tags:
         - stats
@@ -447,19 +478,31 @@ paths:
           required: true
           description: The id of the server to retrieve
           type: string
+        - name: statistic
+          in: query
+          required: false
+          type: string
+          description: |
+            When set to the name of a specific statistic, only this value is returned.
+            If no statistic with that name exists, the response has a 422 status and an error message.
+        - name: includerings
+          in: query
+          required: false
+          type: boolean
+          default: true
+          description: '“true” (default) or “false”, whether to include the Ring items, which can contain thousands of log messages or queried domains. Setting this to ”false” may make the response a lot smaller.'  
       responses:
         '200':
           description: List of Statistic Items
           schema:
             type: array
             items:
-            # these can be commented because the swagger code generator fails on them
-            # and replaced with
-            # type: string
-            # or something like that
-              $ref: '#/definitions/MapStatisticItem'
-            # - $ref: '#/definitions/StatisticItem'
-            # - $ref: '#/definitions/RingStatisticItem'
+              - $ref: '#/definitions/StatisticItem'
+              - $ref: '#/definitions/MapStatisticItem'
+              - $ref: '#/definitions/RingStatisticItem'
+        '422':
+          description: 'Returned when a non-existing statistic name has been requested. Contains an error message'
+        <<: *commonErrors
 
   '/servers/{server_id}/search-data':
     get:
@@ -486,17 +529,23 @@ paths:
           required: true
           description: 'Maximum number of entries to return'
           type: integer
+        - name: object_type
+          in: query
+          required: false
+          description: 'Type of data to search for, one of “all”, “zone”, “record”, “comment”'
+          type: string
       responses:
         '200':
           description: Returns a JSON array with results
           schema:
             $ref: '#/definitions/SearchResults'
+        <<: *commonErrors
 
   '/servers/{server_id}/zones/{zone_id}/metadata':
     get:
       security:
         - APIKeyHeader: []
-      summary: Get all the MetaData associated with the zone.
+      summary: 'Get all the Metadata associated with the zone.'
       operationId: listMetadata
       tags:
         - zonemetadata
@@ -518,6 +567,7 @@ paths:
             type: array
             items:
               $ref: '#/definitions/Metadata'
+        <<: *commonErrors
     post:
       security:
         - APIKeyHeader: []
@@ -537,22 +587,21 @@ paths:
           in: path
           required: true
         - name: metadata
-          description: List of metadata to add/create
+          description: Metadata object with list of values to create
           required: true
           in: body
           schema:
-            type: array
-            items:
               $ref: '#/definitions/Metadata'
       responses:
         '204':
           description: OK
+        <<: *commonErrors
 
   '/servers/{server_id}/zones/{zone_id}/metadata/{metadata_kind}':
     get:
       security:
         - APIKeyHeader: []
-      summary: Get the content of a single kind of domain metadata as a list of MetaData objects.
+      summary: 'Get the content of a single kind of domain metadata as a Metadata object.'
       operationId: getMetadata
       tags:
         - zonemetadata
@@ -571,16 +620,18 @@ paths:
           type: string
           in: path
           required: true
-          description: '???'
+          description: The kind of metadata
       responses:
         '200':
-          description: List of Metadata objects
+          description: Metadata object with list of values
           schema:
             $ref: '#/definitions/Metadata'
+        <<: *commonErrors
     put:
       security:
         - APIKeyHeader: []
-      summary: 'Modify the content of a single kind of domain metadata.'
+      summary: 'Replace the content of a single kind of domain metadata.'
+      description: 'Creates a set of metadata entries of given kind for the zone. Existing metadata entries for the zone with the same kind are removed.'
       operationId: modifyMetadata
       tags:
         - zonemetadata
@@ -606,8 +657,11 @@ paths:
           schema:
             $ref: '#/definitions/Metadata'
       responses:
-        '204':
-          description: OK
+        '200':
+          description: Metadata object with list of values
+          schema:
+            $ref: '#/definitions/Metadata'
+        <<: *commonErrors
     delete:
       security:
         - APIKeyHeader: []
@@ -630,10 +684,11 @@ paths:
           type: string
           in: path
           required: true
-          description: '???'
+          description: The kind of metadata
       responses:
         '204':
           description: OK
+        <<: *commonErrors
 
   '/servers/{server_id}/zones/{zone_id}/cryptokeys':
     get:
@@ -661,6 +716,7 @@ paths:
             type: array
             items:
               $ref: '#/definitions/Cryptokey'
+        <<: *commonErrors
     post:
       security:
         - APIKeyHeader: []
@@ -690,6 +746,7 @@ paths:
           description: Created
           schema:
             $ref: '#/definitions/Cryptokey'
+        <<: *commonErrors
 
   '/servers/{server_id}/zones/{zone_id}/cryptokeys/{cryptokey_id}':
     get:
@@ -720,6 +777,7 @@ paths:
           description: Cryptokey
           schema:
             $ref: '#/definitions/Cryptokey'
+        <<: *commonErrors
     put:
       security:
         - APIKeyHeader: []
@@ -751,8 +809,7 @@ paths:
       responses:
         '204':
           description: OK
-        '422':
-          description: 'Returned when something is wrong with the content of the request. Contains an error message'
+        <<: *commonErrors
     delete:
       security:
         - APIKeyHeader: []
@@ -779,34 +836,175 @@ paths:
       responses:
         '204':
           description: OK
-        '422':
-          description: 'Returned when something is wrong with the content of the request. Contains an error message'
+        <<: *commonErrors
 
-  '/servers/{server_id}/health':
+  '/servers/{server_id}/tsigkeys':
+    parameters:
+      - name: server_id
+        in: path
+        required: true
+        description: 'The id of the server'
+        type: string
     get:
-      security:
-        - APIKeyHeader: []
-      summary: Perfoms health check
-      operationId: health_check
+      summary: 'Get all TSIGKeys on the server, except the actual key'
+      operationId: listTSIGKeys
       tags:
-        - Monitoring
-      parameters:
-        - name: server_id
-          in: path
-          required: true
-          description: The id of the server to retrieve
-          type: string
+        - tsigkey
       responses:
         '200':
-          description: Healthcheck succeeded
+          description: List of TSIGKey objects
           schema:
-            type: string
-            example: "up"
-        '503':
-          description: Healthcheck failed
+            type: array
+            items:
+              $ref: '#/definitions/TSIGKey'
+        <<: *commonErrors
+    post:
+      summary: 'Add a TSIG key'
+      description: 'This methods add a new TSIGKey. The actual key can be generated by the server or be provided by the client'
+      operationId: createTSIGKey
+      tags:
+        - tsigkey
+      parameters:
+        - name: tsigkey
+          description: The TSIGKey to add
+          required: true
+          in: body
           schema:
-            type: string
-            example: Down/Unknown
+            $ref: '#/definitions/TSIGKey'
+      responses:
+        '201':
+          description: Created
+          schema:
+            $ref: '#/definitions/TSIGKey'
+        '409':
+          description: An item with this name already exists
+          schema:
+            $ref: '#/definitions/Error'
+        <<: *commonErrors
+
+  '/servers/{server_id}/tsigkeys/{tsigkey_id}':
+    parameters:
+      - name: server_id
+        in: path
+        required: true
+        description: 'The id of the server to retrieve the key from'
+        type: string
+      - name: tsigkey_id
+        in: path
+        required: true
+        description: 'The id of the TSIGkey. Should match the "id" field in the TSIGKey object'
+        type: string
+    get:
+      summary: 'Get a specific TSIGKeys on the server, including the actual key'
+      operationId: getTSIGKey
+      tags:
+        - tsigkey
+      responses:
+        '200':
+          description: OK.
+          schema:
+            $ref: '#/definitions/TSIGKey'
+        <<: *commonErrors
+    put:
+      description: |
+        The TSIGKey at tsigkey_id can be changed in multiple ways:
+         * Changing the Name, this will remove the key with tsigkey_id after adding.
+         * Changing the Algorithm
+         * Changing the Key
+
+        Only the relevant fields have to be provided in the request body.
+      operationId: putTSIGKey
+      tags:
+        - tsigkey
+      parameters:
+        - name: tsigkey
+          description: A (possibly stripped down) TSIGKey object with the new values
+          schema:
+            $ref: '#/definitions/TSIGKey'
+          in: body
+          required: true
+      responses:
+        '200':
+          description: OK. TSIGKey is changed.
+          schema:
+            $ref: '#/definitions/TSIGKey'
+        '409':
+          description: An item with this name already exists
+          schema:
+            $ref: '#/definitions/Error'
+        <<: *commonErrors
+    delete:
+      summary: 'Delete the TSIGKey with tsigkey_id'
+      operationId: deleteTSIGKey
+      tags:
+        - tsigkey
+      responses:
+        '204':
+          description: 'OK, key was deleted'
+        <<: *commonErrors
+
+  '/servers/{server_id}/autoprimaries':
+    parameters:
+      - name: server_id
+        in: path
+        required: true
+        description: 'The id of the server to manage the list of autoprimaries on'
+        type: string
+    get:
+      summary: 'Get a list of autoprimaries'
+      operationId: getAutoprimaries
+      tags:
+        - autoprimary
+      responses:
+        '200':
+          description: OK.
+          schema:
+            $ref: '#/definitions/Autoprimary'
+        <<: *commonErrors
+    post:
+      summary: 'Add an autoprimary'
+      description: 'This methods add a new autoprimary server.'
+      operationId: createAutoprimary
+      tags:
+        - autoprimary
+      parameters:
+        - name: autoprimary
+          description: autoprimary entry to add
+          required: true
+          in: body
+          schema:
+            $ref: '#/definitions/Autoprimary'
+      responses:
+        '201':
+          description: Created
+        <<: *commonErrors
+
+  '/servers/{server_id}/autoprimaries/{ip}/{nameserver}':
+    parameters:
+      - name: server_id
+        in: path
+        required: true
+        description: 'The id of the server to delete the autoprimary from'
+        type: string
+      - name: ip
+        in: path
+        required: true
+        description: 'IP address of autoprimary'
+        type: string
+      - name: nameserver
+        in: path
+        required: true
+        description: 'DNS name of the autoprimary'
+        type: string
+    delete:
+      summary: 'Delete the autoprimary entry'
+      operationId: deleteAutoprimary
+      tags:
+        - autoprimary
+      responses:
+        '204':
+          description: 'OK, key was deleted'
+        <<: *commonErrors
             
   '/pdnsadmin/zones':
     get:
@@ -1709,18 +1907,23 @@ definitions:
           - 'Native'
           - 'Master'
           - 'Slave'
-        description: 'Zone kind, one of “Native”, “Master”, “Slave”'
+          - 'Producer'
+          - 'Consumer'
+        description: 'Zone kind, one of “Native”, “Master”, “Slave”, “Producer”, “Consumer”'
       rrsets:
         type: array
         items:
           $ref: '#/definitions/RRSet'
-        description: 'RRSets in this zone'
+        description: 'RRSets in this zone (for zones/{zone_id} endpoint only; omitted during GET on the .../zones list endpoint)'
       serial:
         type: integer
         description: 'The SOA serial number'
       notified_serial:
         type: integer
         description: 'The SOA serial notifications have been sent out for'
+        edited_serial:
+        type: integer
+        description: 'The SOA serial as seen in query responses. Calculated using the SOA-EDIT metadata, default-soa-edit and default-soa-edit-signed settings'
       masters:
         type: array
         items:
@@ -1746,10 +1949,13 @@ definitions:
         description: 'The SOA-EDIT-API metadata item'
       api_rectify:
         type: boolean
-        description: ' Whether or not the zone will be rectified on data changes via the API'
+        description: 'Whether or not the zone will be rectified on data changes via the API'
       zone:
         type: string
         description: 'MAY contain a BIND-style zone file when creating a zone'
+        catalog:
+        type: string
+        description: 'The catalog this zone is a member of'
       account:
         type: string
         description: 'MAY be set. Its value is defined by local policy'
@@ -1758,14 +1964,14 @@ definitions:
         items:
           type: string
         description: 'MAY be sent in client bodies during creation, and MUST NOT be sent by the server. Simple list of strings of nameserver names, including the trailing dot. Not required for slave zones.'
-      tsig_master_key_ids:
+      master_tsig_key_ids:
         type: array
         items:
           type: string
         description: 'The id of the TSIG keys used for master operation in this zone'
         externalDocs:
           url: 'https://doc.powerdns.com/authoritative/tsig.html#provisioning-outbound-axfr-access'
-      tsig_slave_key_ids:
+      slave_tsig_key_ids:
         type: array
         items:
           type: string
@@ -1823,7 +2029,7 @@ definitions:
         description: 'The content of this record'
       disabled:
         type: boolean
-        description: 'Whether or not this record is disabled'
+        description: 'Whether or not this record is disabled. When unset, the record is not disabled'
       set-ptr:
         type: boolean
         description: 'If set to true, the server will find the matching reverse zone and create a PTR there. Existing PTR records are replaced. If no matching reverse Zone, an error is thrown. Only valid in client bodies, only valid for A and AAAA types. Not returned by the server.'
@@ -1844,7 +2050,7 @@ definitions:
 
   TSIGKey:
     title: TSIGKey
-    description: A TSIG key that can be used to authenticate NOTIFYs and AXFRs
+    description: A TSIG key that can be used to authenticate NOTIFY, AXFR, and DNSUPDATE queries.
     properties:
       name:
         type: string
@@ -1863,6 +2069,20 @@ definitions:
         type: string
         description: 'Set to "TSIGKey"'
         readOnly: true
+
+  Autoprimary:
+     title: Autoprimary server
+     description: An autoprimary server that can provision new domains.
+     properties:
+       ip:
+         type: string
+         description: "IP address of the autoprimary server"
+       nameserver:
+         type: string
+         description: "DNS name of the autoprimary server"
+       account:
+         type: string
+         description: "Account name for the autoprimary server"
 
   PDNSAdminZones:
     title: PDNSAdminZones
@@ -2073,69 +2293,62 @@ definitions:
         type: string
         description: 'The value of setting name'
 
-  BaseStatisticItem:
-    title: BaseStatisticItem
+  SimpleStatisticItem:
+    title: SimpleStatisticItem
+    type: object
     properties:
       name:
-        type: string
-        description: 'The name of this item (e.g. ‘uptime’)'
+          type: string
+          description: 'Item name'
+      value:
+          type: string
+          description: 'Item value'
 
   StatisticItem:
     title: StatisticItem
-    allOf:
-    - $ref: "#/definitions/BaseStatisticItem"
-    - properties:
-        type:
-          enum: [StatisticItem]
-          description: 'set to "StatisticItem"'
-        value:
-          type: string
-          description: 'The value of item'
+    properties:
+      name:
+        type: string
+        description: 'Item name'
+      type:
+        type: string
+        description: 'set to "StatisticItem"'
+      value:
+        type: string
+        description: 'Item value'
 
   MapStatisticItem:
     title: MapStatisticItem
-    allOf:
-    - $ref: "#/definitions/BaseStatisticItem"
-    - properties:
-        type:
-          enum: [MapStatisticItem]
-          description: 'set to "MapStatisticItem"'
-        value:
-          type: array
-          description: 'named statistic values'
-          items:
-            type: object
-            properties:
-              name:
-                type: string
-                description: 'item name'
-              value:
-                type: string
-                description: 'item value'
+    properties:
+      name:
+        type: string
+        description: 'Item name'
+      type:
+        type: string
+        description: 'Set to "MapStatisticItem"'
+      value:
+        type: array
+        description: 'Named values'
+        items:
+          $ref: '#/definitions/SimpleStatisticItem'
 
   RingStatisticItem:
     title: RingStatisticItem
-    allOf:
-    - $ref: "#/definitions/BaseStatisticItem"
-    - properties:
-        type:
-          enum: [RingStatisticItem]
-          description: 'set to "RingStatisticItem"'
-        size:
-          type: integer
-          description: 'for RingStatisticItem objects, the size of the ring'
-        value:
-          type: array
-          description: 'named ring statistic values'
-          items:
-            type: object
-            properties:
-              name:
-                type: string
-                description: 'item name'
-              value:
-                type: string
-                description: 'item value'
+    properties:
+      name:
+        type: string
+        description: 'Item name'
+      type:
+        type: string
+        description: 'Set to "RingStatisticItem"'
+      size:
+        type: integer
+        description: 'Ring size'
+      value:
+        type: array
+        description: 'Named values'
+        items:
+          $ref: '#/definitions/SimpleStatisticItem'
 
   SearchResultZone:
     title: SearchResultZone
@@ -2239,7 +2452,7 @@ definitions:
         type: string
         description: 'set to "Cryptokey"'
       id:
-        type: string
+        type: integer
         description: 'The internal identifier, read only'
       keytype:
         type: string
@@ -2247,6 +2460,9 @@ definitions:
       active:
         type: boolean
         description: 'Whether or not the key is in active use'
+        published:
+        type: boolean
+        description: 'Whether or not the DNSKEY record is published in the zone'
       dnskey:
         type: string
         description: 'The DNSKEY record for this key'
@@ -2255,6 +2471,11 @@ definitions:
         items:
           type: string
         description: 'An array of DS records for this key'
+        cds:
+        type: array
+        items:
+          type: string
+        description: 'An array of DS records for this key, filtered by CDS publication settings'
       privatekey:
         type: string
         description: 'The private key in ISC format'
@@ -2267,7 +2488,7 @@ definitions:
 
   Error:
     title: Error
-    description: 'Returned when the server encounters an error. Either in client input or internally'
+    description: 'Returned when the server encounters an error, either in client input or internally'
     properties:
       error:
         type: string

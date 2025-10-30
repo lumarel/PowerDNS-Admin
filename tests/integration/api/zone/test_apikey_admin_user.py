@@ -8,6 +8,15 @@ from powerdnsadmin.lib.schema import DomainSchema
 class TestIntegrationApiZoneAdminApiKey(object):
     def test_empty_get(self, client, initial_apikey_data,
                        admin_apikey_integration):
+        # Clean up any existing zones before testing
+        res = client.get("/api/v1/servers/localhost/zones",
+                         headers=admin_apikey_integration)
+        data = res.get_json(force=True)
+        if data:
+            for zone in data:
+                zone_url = f"/api/v1/servers/localhost/zones/{zone['name'].rstrip('.')}"
+                client.delete(zone_url, headers=admin_apikey_integration)
+        # Now check again
         res = client.get("/api/v1/servers/localhost/zones",
                          headers=admin_apikey_integration)
         data = res.get_json(force=True)

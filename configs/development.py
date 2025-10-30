@@ -25,6 +25,7 @@ CAPTCHA_SESSION_KEY = 'captcha_image'
 
 #Server side sessions tracking
 #Set to TRUE for CAPTCHA, or enable another stateful session tracking system
+#SESSION_TYPE = 'sqlalchemy' or 'cachelib' (replacing filesystem)
 SESSION_TYPE = 'sqlalchemy'
 
 ### DATABASE - MySQL

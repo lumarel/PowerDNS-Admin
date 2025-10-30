@@ -1,19 +1,24 @@
+from typing import Optional
 from flask import current_app
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import db
 
 
 class DomainTemplateRecord(db.Model):
     __tablename__ = "domain_template_record"
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255))
-    type = db.Column(db.String(64))
-    ttl = db.Column(db.Integer)
-    data = db.Column(db.Text)
-    comment = db.Column(db.Text)
-    status = db.Column(db.Boolean)
-    template_id = db.Column(db.Integer, db.ForeignKey('domain_template.id'))
-    template = db.relationship('DomainTemplate', back_populates='records')
+    
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    name: Mapped[Optional[str]] = mapped_column(db.String(255), nullable=True)
+    type: Mapped[Optional[str]] = mapped_column(db.String(64), nullable=True)
+    ttl: Mapped[Optional[int]] = mapped_column(db.Integer, nullable=True)
+    data: Mapped[Optional[str]] = mapped_column(db.Text, nullable=True)
+    comment: Mapped[Optional[str]] = mapped_column(db.Text, nullable=True)
+    status: Mapped[Optional[bool]] = mapped_column(db.Boolean, nullable=True)
+    template_id: Mapped[int] = mapped_column(db.Integer, db.ForeignKey('domain_template.id'))
+
+    # Relationships
+    template: Mapped["DomainTemplate"] = relationship('DomainTemplate', back_populates='records')
 
     def __repr__(self):
         return '<DomainTemplateRecord {0}>'.format(self.id)

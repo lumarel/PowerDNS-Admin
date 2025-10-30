@@ -1,0 +1,39 @@
+
+
+services:
+  app:
+    build: 
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ..:/workspace:cached
+    command: sleep infinity
+    environment:
+      - FLASK_APP=powerdnsadmin/__init__.py
+      - PDNS_PROTO=http
+      - PDNS_HOST=pdns
+      - PDNS_PORT=8081
+      - PDNS_API_KEY=changeme
+    networks:
+      - pdnsadmin
+
+  pdns:
+    image: powerdns/pdns-auth-master:latest
+    environment:
+      - PDNS_AUTH_API=yes
+      - PDNS_AUTH_API_KEY=changeme
+      - PDNS_AUTH_SQLITE_DB=/var/lib/powerdns/pdns.sqlite3
+      - PDNS_WEBSERVER_ALLOW_FROM=0.0.0.0/0
+    ports:
+      - "8081:8081"
+    volumes:
+      - pdns-data:/var/lib/powerdns
+    networks:
+      - pdnsadmin
+
+networks:
+  pdnsadmin:
+    name: pdnsadmin
+
+volumes:
+  pdns-data:

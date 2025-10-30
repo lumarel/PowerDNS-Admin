@@ -6,7 +6,6 @@ from powerdnsadmin.lib.validators import validate_apikey
 from powerdnsadmin.lib.schema import ApiKeySchema
 from tests.conftest import user_apikey_data, admin_apikey_data
 
-
 class TestIntegrationApiApiKeyAdminUser(object):
     def test_empty_get(self, initial_data, client, basic_auth_admin_headers):
         res = client.get("/api/v1/pdnsadmin/apikeys",
@@ -20,12 +19,12 @@ class TestIntegrationApiApiKeyAdminUser(object):
         [user_apikey_data(), admin_apikey_data()])
     def test_create_apikey(self, initial_data, client, apikey_data, zone_data,
                            basic_auth_admin_headers):
-        res = client.post("/api/v1/pdnsadmin/zones",
+        res = client.post("api/v1/pdnsadmin/zones",
                           headers=basic_auth_admin_headers,
                           data=json.dumps(zone_data),
                           content_type="application/json")
         data = res.get_json(force=True)
-
+        print(data)
         assert res.status_code == 201
 
         res = client.post("/api/v1/pdnsadmin/apikeys",

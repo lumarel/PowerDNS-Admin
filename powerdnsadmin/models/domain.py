@@ -5,6 +5,8 @@ from flask import current_app
 from flask_login import current_user
 from urllib.parse import urljoin, quote_plus
 from ..lib.compat import strtobool
+from typing import Optional, List
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..lib import utils
 from .base import db, domain_apikey
@@ -18,20 +20,28 @@ from .history import History
 
 
 class Domain(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), index=True, unique=True)
-    master = db.Column(db.String(128))
-    type = db.Column(db.String(8), nullable=False)
-    serial = db.Column(db.BigInteger)
-    notified_serial = db.Column(db.BigInteger)
-    last_check = db.Column(db.Integer)
-    dnssec = db.Column(db.Integer)
-    account_id = db.Column(db.Integer, db.ForeignKey('account.id'))
-    account = db.relationship("Account", back_populates="domains")
-    settings = db.relationship('DomainSetting', back_populates='domain')
-    apikeys = db.relationship("ApiKey",
-                              secondary=domain_apikey,
-                              back_populates="domains")
+    __tablename__ = 'domain'
+    
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(db.String(255), index=True, unique=True)
+    master: Mapped[Optional[str]] = mapped_column(db.String(128), nullable=True)
+    type: Mapped[str] = mapped_column(db.String(8), nullable=False)
+    serial: Mapped[Optional[int]] = mapped_column(db.BigInteger, nullable=True)
+    notified_serial: Mapped[Optional[int]] = mapped_column(db.BigInteger, nullable=True)
+    last_check: Mapped[Optional[int]] = mapped_column(db.Integer, nullable=True)
+    dnssec: Mapped[Optional[int]] = mapped_column(db.Integer, nullable=True)
+    account_id: Mapped[Optional[int]] = mapped_column(db.Integer, db.ForeignKey('account.id'), nullable=True)
+    catalog: Mapped[Optional[str]] = mapped_column(db.String(255), index=True, nullable=True)
+    # Relationships
+    account: Mapped[Optional["Account"]] = relationship("Account", back_populates="domains")
+    settings: Mapped[List["DomainSetting"]] = relationship('DomainSetting', back_populates='domain', cascade="all, delete-orphan")
+    apikeys: Mapped[List["ApiKey"]] = relationship(
+        "ApiKey",
+        secondary=domain_apikey,
+        back_populates="domains"
+    )
+
+
 
     def __init__(self,
                  id=None,
@@ -232,7 +242,8 @@ class Domain(db.Model):
             soa_edit_api,
             domain_ns=[],
             domain_master_ips=[],
-            account_name=None):
+            account_name=None,
+            catalog_name=None):
         """
         Add a zone to power dns
         """
@@ -254,7 +265,8 @@ class Domain(db.Model):
             "masters": domain_master_ips,
             "nameservers": domain_ns,
             "soa_edit_api": soa_edit_api,
-            "account": account_name
+            "account": account_name,
+            "catalog": catalog_name
         }
 
         try:
@@ -320,6 +332,8 @@ class Domain(db.Model):
         d.last_check = domain['last_check']
         d.dnssec = 1 if domain['dnssec'] else 0
         d.account_id = account_id
+        if 'catalog' in domain:
+            d.catalog = domain['catalog'].rstrip('.')
         db.session.add(d)
         try:
             if do_commit:
@@ -425,6 +439,58 @@ class Domain(db.Model):
                 'status': 'error',
                 'msg': 'Cannot update kind for this zone.'
             }
+
+    def update_catalog(self, domain_name, catalog_name):
+        """
+        Update domain catalog zone
+        """
+        import urllib.parse
+
+        domain = Domain.query.filter(Domain.name == domain_name).first()
+        if not domain:
+            return {'status': 'error', 'msg': 'Znoe does not exist.'}
+
+        headers = {'X-API-Key': self.PDNS_API_KEY, 'Content-Type': 'application/json'}
+
+        post_data = {"catalog": catalog_name}
+
+        try:
+            jdata = utils.fetch_json(urljoin(
+                self.PDNS_STATS_URL, self.API_EXTENDED_URL +
+                                     '/servers/localhost/zones/{0}'.format(urllib.parse.quote_plus(domain.name))),
+                headers=headers,
+                timeout=int(
+                    Setting().get('pdns_api_timeout')),
+                method='PUT',
+                verify=Setting().get('verify_ssl_connections'),
+                data=post_data)
+            if 'error' in jdata.keys():
+                current_app.logger.error(jdata['error'])
+                return {'status': 'error', 'msg': jdata['error']}
+            else:
+                domain.catalog = catalog_name
+                db.session.commit()
+
+                current_app.logger.info(
+                    'Update zone catalog for {0} successfully'.format(
+                        domain_name))
+                return {
+                    'status': 'ok',
+                    'msg': 'Zone catalog changed successfully'
+                }
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(
+                'Cannot update catalog for zone {0}. Error: {1}'.format(
+                    domain_name, e))
+            current_app.logger.debug(traceback.format_exc())
+
+            return {
+                'status': 'error',
+                'msg': 'Cannot update catalog for this zone.'
+            }
+
+
 
     def create_reverse_domain(self, domain_name, domain_reverse_name):
         """

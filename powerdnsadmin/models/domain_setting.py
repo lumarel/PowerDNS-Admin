@@ -1,17 +1,21 @@
 import traceback
-
+from typing import Optional
 from flask import current_app
-
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import db
 
 
 class DomainSetting(db.Model):
     __tablename__ = 'domain_setting'
-    id = db.Column(db.Integer, primary_key=True)
-    domain_id = db.Column(db.Integer, db.ForeignKey('domain.id'))
-    domain = db.relationship('Domain', back_populates='settings')
-    setting = db.Column(db.String(255), nullable=False)
-    value = db.Column(db.String(255))
+    
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    domain_id: Mapped[int] = mapped_column(db.Integer, db.ForeignKey('domain.id'))
+    setting: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    value: Mapped[Optional[str]] = mapped_column(db.String(255), nullable=True)
+
+    # Relationships
+    domain: Mapped["Domain"] = relationship('Domain', back_populates='settings')
+
 
     def __init__(self, id=None, setting=None, value=None):
         self.id = id

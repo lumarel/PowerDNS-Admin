@@ -1,12 +1,19 @@
+from typing import Optional, List
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from .base import db
 
 
 class Role(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), index=True, unique=True)
-    description = db.Column(db.String(128))
-    users = db.relationship('User', back_populates='role', lazy=True)
-    apikeys = db.relationship('ApiKey', back_populates='role', lazy=True)
+    __tablename__ = "role"
+
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(db.String(64), index=True, unique=True)
+    description: Mapped[str] = mapped_column(db.String(128))
+
+    # Relationships
+    users: Mapped[List["User"]] = relationship('User', back_populates='role')
+    apikeys: Mapped[List["ApiKey"]] = relationship('ApiKey', back_populates='role')
 
     def __init__(self, id=None, name=None, description=None):
         self.id = id

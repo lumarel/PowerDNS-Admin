@@ -1,13 +1,18 @@
+import datetime
 from flask import current_app, session
 from flask_login import current_user
+from typing import Optional
 from .base import db
-
+from sqlalchemy.orm import Mapped, mapped_column
 
 class Sessions(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(db.String(255), index=True, unique=True)
-    data = db.Column(db.BLOB)
-    expiry = db.Column(db.DateTime)
+    __tablename__ = "sessions"
+    __table_args__ = {'extend_existing': True}
+    
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    session_id: Mapped[str] = mapped_column(db.String(255), index=True, unique=True)
+    data: Mapped[bytes] = mapped_column(db.BLOB)
+    expiry: Mapped[datetime] = mapped_column(db.DateTime)
 
     def __init__(self,
                  id=None,

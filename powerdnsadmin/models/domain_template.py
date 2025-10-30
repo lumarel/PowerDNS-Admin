@@ -1,15 +1,22 @@
 from flask import current_app
+from typing import Optional, List
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import db
 
 
 class DomainTemplate(db.Model):
     __tablename__ = "domain_template"
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), index=True, unique=True)
-    description = db.Column(db.String(255))
-    records = db.relationship('DomainTemplateRecord',
-                              back_populates='template',
-                              cascade="all, delete-orphan")
+
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(db.String(255), index=True, unique=True)
+    description: Mapped[Optional[str]] = mapped_column(db.String(255), nullable=True)
+    
+    # Relationships
+    records: Mapped[List["DomainTemplateRecord"]] = relationship(
+        'DomainTemplateRecord',
+        back_populates='template',
+        cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return '<DomainTemplate {0}>'.format(self.name)

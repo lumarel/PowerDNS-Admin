@@ -4,6 +4,8 @@ from urllib.parse import urljoin
 
 from ..lib import utils
 from ..lib.errors import InvalidAccountNameException
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import Optional, List
 from .base import db
 from .setting import Setting
 from .user import User
@@ -12,15 +14,17 @@ from .account_user import AccountUser
 
 class Account(db.Model):
     __tablename__ = 'account'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(40), index=True, unique=True, nullable=False)
-    description = db.Column(db.String(128))
-    contact = db.Column(db.String(128))
-    mail = db.Column(db.String(128))
-    domains = db.relationship("Domain", back_populates="account")
-    apikeys = db.relationship("ApiKey",
-                              secondary="apikey_account",
-                              back_populates="accounts")
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(db.String(40), index=True, unique=True, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(db.String(128), nullable=True)
+    contact: Mapped[Optional[str]] = mapped_column(db.String(128), nullable=True)
+    mail: Mapped[Optional[str]] = mapped_column(db.String(128), nullable=True)
+    domains: Mapped[List["Domain"]] = relationship("Domain", back_populates="account")
+    apikeys: Mapped[List["ApiKey"]] = relationship(
+        "ApiKey",
+        secondary="apikey_account",
+        back_populates="accounts"
+    )
 
     def __init__(self, name=None, description=None, contact=None, mail=None):
         self.name = Account.sanitize_name(name) if name is not None else name

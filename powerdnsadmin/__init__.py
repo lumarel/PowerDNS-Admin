@@ -1,11 +1,14 @@
 import os
 import logging
+import re
 from flask import Flask
 from flask_mail import Mail
 from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_migrate import Migrate
 from flask_session import Session
+from cachelib.file import FileSystemCache
 from .lib import utils
-
+from .models import db
 
 def create_app(config=None):
     from powerdnsadmin.lib.settings import AppSettings
@@ -53,21 +56,39 @@ def create_app(config=None):
     # Load any settings defined with environment variables
     AppSettings.load_environment(app)
 
+    #Initialize db only once 
+    db.init_app(app)
+    _migrate = Migrate(app, db)  # lgtm [py/unused-local-variable]
+
+    # Read version from VERSION file
+    version_file_path = os.path.join(app.root_path, '..', 'VERSION')
+    if os.path.exists(version_file_path):
+        with open(version_file_path, 'r') as version_file:
+            version = version_file.read().strip()
+            # Validate the version format using a regular expression
+            if re.match(r'^\d+\.\d+\.\d+(-\w+(\.\w+)*)?(\+\w+(\.\w+)*)?$', version):
+                app.config['VERSION'] = version
+            else:
+                raise ValueError(f"Invalid version format: {version}")
+
+
     # HSTS
     if app.config.get('HSTS_ENABLED'):
         from flask_sslify import SSLify
         _sslify = SSLify(app)  # lgtm [py/unused-local-variable]
 
     # Load Flask-Session
-    app.config['SESSION_TYPE'] = app.config.get('SESSION_TYPE')
+    app.config['SESSION_TYPE'] = app.config.get('SESSION_TYPE','sqlalchemy')
     if 'SESSION_TYPE' in os.environ:
         app.config['SESSION_TYPE'] = os.environ.get('SESSION_TYPE')
 
-    sess = Session(app)
+    # Initialize session with existing SQLAlchemy instance
+    if app.config['SESSION_TYPE'] == 'sqlalchemy':
+        app.config['SESSION_SQLALCHEMY'] = db
 
-    # create sessions table if using sqlalchemy backend
-    if os.environ.get('SESSION_TYPE') == 'sqlalchemy':
-        sess.app.session_interface.db.create_all()
+    if app.config['SESSION_TYPE'] == 'cachelib':
+        app.config['SESSION_CACHELIB'] = FileSystemCache(cache_dir='flask_session', threshold=500)
+    sess = Session(app)
 
     # SMTP
     app.mail = Mail(app)
@@ -99,5 +120,9 @@ def create_app(config=None):
     def inject_setting():
         setting = Setting()
         return dict(SETTING=setting)
+
+    @app.context_processor
+    def inject_version():
+        return dict(version=app.config['VERSION'])
 
     return app

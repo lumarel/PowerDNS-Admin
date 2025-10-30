@@ -2,6 +2,8 @@ import secrets
 import string
 import bcrypt
 from flask import current_app
+from typing import Optional, List
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import db
 from ..models.role import Role
@@ -10,17 +12,23 @@ from ..models.account import Account
 
 class ApiKey(db.Model):
     __tablename__ = "apikey"
-    id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(255), unique=True, nullable=False)
-    description = db.Column(db.String(255))
-    role_id = db.Column(db.Integer, db.ForeignKey('role.id'))
-    role = db.relationship('Role', back_populates="apikeys", lazy=True)
-    domains = db.relationship("Domain",
-                              secondary="domain_apikey",
-                              back_populates="apikeys")
-    accounts = db.relationship("Account",
-                               secondary="apikey_account",
-                               back_populates="apikeys")
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(db.String(255), unique=True, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(db.String(255), nullable=True)
+    role_id: Mapped[Optional[int]] = mapped_column(db.Integer, db.ForeignKey('role.id'), nullable=True)
+        
+    role: Mapped[Optional["Role"]] = relationship('Role', back_populates="apikeys", lazy=True)
+    domains: Mapped[List["Domain"]] = relationship(
+        "Domain",
+        secondary="domain_apikey",
+        back_populates="apikeys"
+    )
+    accounts: Mapped[List["Account"]] = relationship(
+        "Account",
+        secondary="apikey_account",
+        back_populates="apikeys"
+    )
 
     def __init__(self, key=None, desc=None, role_name=None, domains=[], accounts=[]):
         self.id = None
